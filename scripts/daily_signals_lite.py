@@ -54,14 +54,29 @@ def init_tushare():
 def get_cs300_stocks(pro):
     """获取沪深300成分股"""
     try:
-        df = pro.index_weight(index_code='000300.SH', start_date='20250101', end_date=datetime.now().strftime('%Y%m%d'))
+        # 获取最新的沪深300成分股
+        end_date = datetime.now().strftime('%Y%m%d')
+        start_date = (datetime.now() - timedelta(days=10)).strftime('%Y%m%d')
+
+        df = pro.index_weight(index_code='000300.SH', start_date=start_date, end_date=end_date)
+
         if df.empty:
-            # 备用方案：获取最新日期
-            df = pro.index_weight(index_code='000300.SH')
-        return df['con_code'].unique().tolist()[:TEST_STOCK_COUNT]
-    except:
-        # 如果获取失败，返回一些主流股票
-        return ['000001.SZ', '000002.SZ', '600000.SH', '600036.SH', '600519.SH']
+            print("  ⚠️ index_weight 返回空，尝试使用 stock_basic")
+            # 备用方案：直接获取股票列表
+            df_basic = pro.stock_basic(list_status='L', fields='ts_code,name')
+            return df_basic['ts_code'].tolist()[:TEST_STOCK_COUNT]
+
+        stocks = df['con_code'].unique().tolist()
+        print(f"  ✅ 获取到 {len(stocks)} 只沪深300成分股")
+        return stocks[:TEST_STOCK_COUNT]
+    except Exception as e:
+        print(f"  ❌ 获取沪深300失败: {e}")
+        # 最后备用方案：获取所有上市股票
+        try:
+            df_basic = pro.stock_basic(list_status='L', fields='ts_code,name')
+            return df_basic['ts_code'].tolist()[:TEST_STOCK_COUNT]
+        except:
+            return ['000001.SZ', '000002.SZ', '600000.SH', '600036.SH', '600519.SH']
 
 
 def download_daily_data(pro, ts_codes, start_date, end_date=None):
@@ -69,21 +84,31 @@ def download_daily_data(pro, ts_codes, start_date, end_date=None):
     if end_date is None:
         end_date = datetime.now().strftime('%Y%m%d')
 
+    print(f"  开始下载 {len(ts_codes[:TEST_STOCK_COUNT])} 只股票的数据 ({start_date} - {end_date})")
+
     all_data = []
+    success_count = 0
     for i, ts_code in enumerate(ts_codes[:TEST_STOCK_COUNT]):
         try:
             df = pro.daily(ts_code=ts_code, start_date=start_date, end_date=end_date)
             if not df.empty:
                 all_data.append(df)
-            if i % 50 == 0:
-                print(f"  下载进度: {i}/{len(ts_codes[:TEST_STOCK_COUNT])}")
-        except:
+                success_count += 1
+            if i % 50 == 0 and i > 0:
+                print(f"  下载进度: {i}/{len(ts_codes[:TEST_STOCK_COUNT])}, 成功: {success_count}")
+        except Exception as e:
+            if i < 5:  # 只打印前5个错误
+                print(f"  ❌ {ts_code} 下载失败: {e}")
             continue
+
+    print(f"  下载完成: {success_count}/{len(ts_codes[:TEST_STOCK_COUNT])} 只股票成功")
 
     if all_data:
         result = pd.concat(all_data, ignore_index=True)
         result = result.sort_values(['ts_code', 'trade_date'])
+        print(f"  ✅ 总共获取 {len(result)} 条数据")
         return result
+    print(f"  ❌ 没有获取到任何数据")
     return pd.DataFrame()
 
 
