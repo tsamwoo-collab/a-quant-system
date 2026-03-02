@@ -45,9 +45,21 @@ def init_tushare():
     if not TUSHARE_TOKEN:
         raise ValueError("TUSHARE_TOKEN 环境变量未设置")
 
+    print(f"  Token: {TUSHARE_TOKEN[:20]}...")
+    print(f"  代理: {TUSHARE_PROXY}")
+
     pro = ts.pro_api(TUSHARE_TOKEN)
     pro._DataApi__token = TUSHARE_TOKEN
     pro._DataApi__http_url = TUSHARE_PROXY
+
+    # 测试连接
+    try:
+        test_df = pro.trade_cal(exchange='SSE', start_date='20260301', end_date='20260302')
+        print(f"  ✅ Tushare API 连接成功")
+    except Exception as e:
+        print(f"  ⚠️ Tushare API 连接测试: {e}")
+        print(f"  提示: 如果连接失败，可能是代理无法访问")
+
     return pro
 
 
