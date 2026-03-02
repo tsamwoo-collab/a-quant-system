@@ -438,7 +438,7 @@ def build_report(market_status, market_adx, buy_signals, sell_signals):
                     "tag": "plain_text",
                     "content": f"📊 量化信号日报 - {today}"
                 },
-                "template": market_status == "趋势市" else "red"
+                "template": "blue" if market_status == "趋势市" else "red"
             },
             "elements": [
                 {
