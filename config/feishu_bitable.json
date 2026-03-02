@@ -1,0 +1,11 @@
+{
+  "app_id": "cli_a92e4f3c293cdbc8",
+  "app_secret": "WeBHtMOrX7j5u3bnQ4cmnbH0HEg2Nl4y",
+  "app_token": "BJS4bdRWbaN0wZsY1kyco7aInhc",
+  "table_ids": {
+    "market_context": "tbleCqTb2JiGGHKw",
+    "signal_tracker": "tblNYQLdtUEEGXez",
+    "portfolio": "tblSMHGLYLc5ILwS",
+    "closed_positions": "tblOeSzt6RI4Efrl"
+  }
+}

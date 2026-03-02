@@ -1,0 +1,40 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+
+# 数据文件
+data/*.duckdb
+data/*.parquet
+data/market_data/
+data/tushare_db.duckdb
+data/signals/*.txt
+!data/signals/.gitkeep
+
+# 日志
+logs/*.log
+!logs/.gitkeep
+
+# 配置文件（包含敏感信息）
+config/tushare_config.json
+config/feishu_config.json
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# macOS
+.DS_Store
+
+# Jupyter
+.ipynb_checkpoints/
+
+# 测试
+.pytest_cache/

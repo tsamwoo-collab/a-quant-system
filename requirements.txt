@@ -1,0 +1,15 @@
+# 核心依赖
+akshare>=1.12.0
+pandas>=2.0.0
+numpy>=1.24.0
+requests>=2.31.0
+
+# 数据存储
+duckdb>=0.9.0
+
+# 可视化
+streamlit>=1.31.0
+plotly>=5.18.0
+
+# 工具
+python-dotenv>=1.0.0

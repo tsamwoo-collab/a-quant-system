@@ -1,0 +1,43 @@
+name: 每日量化信号生成
+
+on:
+  schedule:
+    # 北京时间 19:30 = UTC 11:30
+    - cron: '30 11 * * 1-5'
+  workflow_dispatch:  # 允许手动触发
+
+jobs:
+  generate_signals:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout 代码
+        uses: actions/checkout@v4
+
+      - name: 设置 Python 环境
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+          cache: 'pip'
+
+      - name: 安装依赖
+        run: |
+          pip install --upgrade pip
+          pip install pandas numpy requests tushare
+
+      - name: 生成量化信号
+        env:
+          TUSHARE_TOKEN: ${{ secrets.TUSHARE_TOKEN }}
+          FEISHU_WEBHOOK: ${{ secrets.FEISHU_WEBHOOK }}
+        run: |
+          python3 scripts/daily_signals_lite.py
+
+      - name: 上传日志
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: signal-log-${{ github.run_number }}
+          path: |
+            logs/
+            data/signals/
+          retention-days: 30
