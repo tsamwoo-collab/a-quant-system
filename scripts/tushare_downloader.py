@@ -91,12 +91,12 @@ class TushareDataDownloader:
 
         return df_listed
 
-    def download_daily_data(self, ts_codes: List[str], start_date: str, end_date: str = None) -> pd.DataFrame:
+    def download_daily_data(self, ts_codes: List[str] = None, start_date: str = None, end_date: str = None) -> pd.DataFrame:
         """
-        下载日线数据
+        下载日线数据（向量化方式 - 按日期全量下载）
 
         Args:
-            ts_codes: 股票代码列表
+            ts_codes: 股票代码列表（已废弃，保留用于兼容）
             start_date: 开始日期 (YYYYMMDD)
             end_date: 结束日期 (YYYYMMDD)，默认为今天
         """
@@ -107,30 +107,27 @@ class TushareDataDownloader:
         self.init_api()
 
         all_data = []
-        total = len(ts_codes)
+        current_date = start_date
 
-        for i, ts_code in enumerate(ts_codes, 1):
+        # 按日期循环下载（向量化方式）
+        date_list = pd.date_range(start=start_date, end=end_date, freq='D')
+        trade_dates = [d.strftime('%Y%m%d') for d in date_list]
+
+        for i, trade_date in enumerate(trade_dates, 1):
             try:
-                # 每次最多请求3000条数据（约12年日线）
-                df = self.pro.daily(
-                    ts_code=ts_code,
-                    start_date=start_date,
-                    end_date=end_date
-                )
+                # 一次性下载当日全市场数据
+                df = self.pro.daily(trade_date=trade_date)
 
                 if not df.empty:
                     all_data.append(df)
-                    print(f"  [{i}/{total}] {ts_code}: {len(df)} 条", end="\r")
+                    print(f"  [{i}/{len(trade_dates)}] {trade_date}: {len(df)} 条")
 
-                # API 限速：每200次请求暂停1秒
-                if i % 200 == 0:
-                    time.sleep(1)
+                # 避免请求过快
+                time.sleep(0.1)
 
             except Exception as e:
-                print(f"\n  ❌ {ts_code}: {e}")
+                print(f"  ❌ {trade_date}: {e}")
                 continue
-
-        print()  # 换行
 
         if all_data:
             result = pd.concat(all_data, ignore_index=True)
@@ -181,12 +178,12 @@ class TushareDataDownloader:
         else:
             return pd.DataFrame()
 
-    def download_adj_factor(self, ts_codes: List[str], start_date: str, end_date: str = None) -> pd.DataFrame:
+    def download_adj_factor(self, ts_codes: List[str] = None, start_date: str = None, end_date: str = None) -> pd.DataFrame:
         """
-        下载复权因子数据
+        下载复权因子数据（向量化方式 - 按日期全量下载）
 
         Args:
-            ts_codes: 股票代码列表
+            ts_codes: 股票代码列表（已废弃，保留用于兼容）
             start_date: 开始日期 (YYYYMMDD)
             end_date: 结束日期 (YYYYMMDD)
         """
@@ -197,27 +194,25 @@ class TushareDataDownloader:
         self.init_api()
 
         all_data = []
-        total = len(ts_codes)
 
-        for i, ts_code in enumerate(ts_codes, 1):
+        # 按日期循环下载（向量化方式）
+        date_list = pd.date_range(start=start_date, end=end_date, freq='D')
+        trade_dates = [d.strftime('%Y%m%d') for d in date_list]
+
+        for i, trade_date in enumerate(trade_dates, 1):
             try:
-                df = self.pro.adj_factor(
-                    ts_code=ts_code,
-                    start_date=start_date,
-                    end_date=end_date
-                )
+                # 一次性下载当日全市场复权因子
+                df = self.pro.adj_factor(trade_date=trade_date)
+
                 if not df.empty:
                     all_data.append(df)
-                    print(f"  [{i}/{total}] {ts_code}: {len(df)} 条", end="\r")
+                    print(f"  [{i}/{len(trade_dates)}] {trade_date}: {len(df)} 条")
 
-                if i % 200 == 0:
-                    time.sleep(1)
+                time.sleep(0.1)
 
             except Exception as e:
-                print(f"\n  ❌ {ts_code}: {e}")
+                print(f"  ❌ {trade_date}: {e}")
                 continue
-
-        print()
 
         if all_data:
             result = pd.concat(all_data, ignore_index=True)
@@ -255,12 +250,12 @@ class TushareDataDownloader:
             print(f"❌ 停牌数据下载失败: {e}")
             return pd.DataFrame()
 
-    def download_daily_basic(self, ts_codes: List[str], start_date: str, end_date: str = None) -> pd.DataFrame:
+    def download_daily_basic(self, ts_codes: List[str] = None, start_date: str = None, end_date: str = None) -> pd.DataFrame:
         """
-        下载每日基础指标（换手率、市盈率、市净率、市值等）
+        下载每日基础指标（向量化方式 - 按日期全量下载）
 
         Args:
-            ts_codes: 股票代码列表
+            ts_codes: 股票代码列表（已废弃，保留用于兼容）
             start_date: 开始日期 (YYYYMMDD)
             end_date: 结束日期 (YYYYMMDD)
         """
@@ -271,28 +266,28 @@ class TushareDataDownloader:
         self.init_api()
 
         all_data = []
-        total = len(ts_codes)
 
-        for i, ts_code in enumerate(ts_codes, 1):
+        # 按日期循环下载（向量化方式）
+        date_list = pd.date_range(start=start_date, end=end_date, freq='D')
+        trade_dates = [d.strftime('%Y%m%d') for d in date_list]
+
+        for i, trade_date in enumerate(trade_dates, 1):
             try:
+                # 一次性下载当日全市场基础指标
                 df = self.pro.daily_basic(
-                    ts_code=ts_code,
-                    start_date=start_date,
-                    end_date=end_date,
+                    trade_date=trade_date,
                     fields='ts_code,trade_date,turnover_rate,pe_ttm,pb,total_mv'
                 )
+
                 if not df.empty:
                     all_data.append(df)
-                    print(f"  [{i}/{total}] {ts_code}: {len(df)} 条", end="\r")
+                    print(f"  [{i}/{len(trade_dates)}] {trade_date}: {len(df)} 条")
 
-                if i % 200 == 0:
-                    time.sleep(1)
+                time.sleep(0.1)
 
             except Exception as e:
-                print(f"\n  ❌ {ts_code}: {e}")
+                print(f"  ❌ {trade_date}: {e}")
                 continue
-
-        print()
 
         if all_data:
             result = pd.concat(all_data, ignore_index=True)
@@ -476,7 +471,7 @@ class TushareDataDownloader:
 
     def update_daily(self, date: str = None, use_today: bool = True):
         """
-        增量更新最新日线数据（支持 Parquet）
+        增量更新最新日线数据（向量化方式）
 
         Args:
             date: 指定日期 (YYYYMMDD)，None 则自动选择
@@ -484,47 +479,96 @@ class TushareDataDownloader:
         """
         if date is None:
             if use_today:
-                # 尝试使用今天的日期
                 date = datetime.now().strftime("%Y%m%d")
             else:
-                # 使用昨天（保底方案）
                 date = (datetime.now() - timedelta(days=1)).strftime("%Y%m%d")
 
         print(f"=== 增量更新 ({date}) ===")
 
-        # 获取本地数据库中的股票列表
-        conn = duckdb.connect(self.db_path)
+        # 使用向量化方式下载最近 7 天数据
+        start_date = (datetime.now() - timedelta(days=7)).strftime("%Y%m%d")
+
+        # 下载日线数据
+        df_new = self.download_daily_data(start_date=start_date, end_date=date)
+        if not df_new.empty:
+            self.save_to_parquet(df_new, "daily_quotes")
+
+        # 下载复权因子
+        print("\n--- 更新复权因子 ---")
+        df_adj = self.download_adj_factor(start_date=start_date, end_date=date)
+        if not df_adj.empty:
+            self.save_to_parquet(df_adj, "adj_factor")
+
+        # 下载基础指标
+        print("\n--- 更新每日基础指标 ---")
+        df_basic = self.download_daily_basic(start_date=start_date, end_date=date)
+        if not df_basic.empty:
+            self.save_to_parquet(df_basic, "daily_basic")
+
+        # 重新创建视图
+        self.create_parquet_views()
+
+        print(f"\n✅ 增量更新完成")
+
+
+    def update_daily_fast(self, date: str = None, use_today: bool = True):
+        """
+        快速增量更新 - 一次性获取全市场数据（推荐）
+
+        Args:
+            date: 指定日期 (YYYYMMDD)，None 则自动选择
+            use_today: 是否尝试获取今日数据（默认True）
+        """
+        if date is None:
+            if use_today:
+                date = datetime.now().strftime("%Y%m%d")
+            else:
+                date = (datetime.now() - timedelta(days=1)).strftime("%Y%m%d")
+
+        print(f"=== 快速增量更新 ({date}) ===")
+        self.init_api()
+
+        # 一次性下载全市场当日数据
+        print(f"📥 下载全市场日线数据 ({date})...")
         try:
-            stocks = conn.execute("SELECT DISTINCT ts_code FROM stock_list").fetchdf()
-            ts_codes = stocks['ts_code'].tolist()
-            print(f"本地股票: {len(ts_codes)} 只")
-        finally:
-            conn.close()
+            df_all = self.pro.daily(trade_date=date)
+            print(f"✅ 获取 {len(df_all)} 条日线数据")
+        except Exception as e:
+            print(f"❌ 日线数据下载失败: {e}")
+            df_all = pd.DataFrame()
 
-        if ts_codes:
-            # 下载最新数据（最近7天）
-            start_date = (datetime.now() - timedelta(days=7)).strftime("%Y%m%d")
-            df_new = self.download_daily_data(ts_codes, start_date)
+        # 一次性下载全市场复权因子
+        print(f"📥 下载全市场复权因子 ({date})...")
+        try:
+            df_adj = self.pro.adj_factor(trade_date=date)
+            print(f"✅ 获取 {len(df_adj)} 条复权因子")
+        except Exception as e:
+            print(f"❌ 复权因子下载失败: {e}")
+            df_adj = pd.DataFrame()
 
-            if not df_new.empty:
-                # 保存到 Parquet（自动追加）
-                self.save_to_parquet(df_new, "daily_quotes")
+        # 一次性下载全市场基础指标
+        print(f"📥 下载全市场基础指标 ({date})...")
+        try:
+            df_basic = self.pro.daily_basic(trade_date=date, fields='ts_code,trade_date,turnover_rate,pe_ttm,pb,total_mv')
+            print(f"✅ 获取 {len(df_basic)} 条基础指标")
+        except Exception as e:
+            print(f"❌ 基础指标下载失败: {e}")
+            df_basic = pd.DataFrame()
 
-                # 同时更新复权因子和基础指标
-                print("\n--- 更新复权因子 ---")
-                df_adj = self.download_adj_factor(ts_codes, start_date, date)
-                if not df_adj.empty:
-                    self.save_to_parquet(df_adj, "adj_factor")
+        # 保存到 Parquet
+        if not df_all.empty:
+            self.save_to_parquet(df_all, "daily_quotes")
 
-                print("\n--- 更新每日基础指标 ---")
-                df_basic = self.download_daily_basic(ts_codes, start_date, date)
-                if not df_basic.empty:
-                    self.save_to_parquet(df_basic, "daily_basic")
+        if not df_adj.empty:
+            self.save_to_parquet(df_adj, "adj_factor")
 
-                # 重新创建视图
-                self.create_parquet_views()
+        if not df_basic.empty:
+            self.save_to_parquet(df_basic, "daily_basic")
 
-                print(f"\n✅ 增量更新完成")
+        # 重新创建视图
+        self.create_parquet_views()
+
+        print(f"\n✅ 快速增量更新完成")
 
 
 def create_config_template():

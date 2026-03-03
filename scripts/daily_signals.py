@@ -548,7 +548,7 @@ def main():
     print("=" * 50)
     try:
         downloader = TushareDataDownloader()
-        downloader.update_daily(use_today=True)  # 尝试更新今日数据
+        downloader.update_daily_fast(use_today=True)  # 快速更新今日数据（全市场一次性获取）
     except Exception as e:
         print(f"⚠️ 数据更新失败: {e}")
         print("   将使用本地已有数据生成报告...")
