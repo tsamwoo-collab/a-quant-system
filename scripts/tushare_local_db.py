@@ -332,8 +332,8 @@ class TushareLocalDB:
         """
         获取中证800指数数据（用于计算市场ADX）
 
-        中证800代码：000985.SH（上交所）
-        如果没有中证800数据，则使用上证综指（000001.SH）作为替代
+        中证800代码：000906.SH（推荐）
+        备用：上证综指（000001.SH）
 
         Args:
             start_date: 开始日期 (YYYY-MM-DD)
@@ -352,8 +352,8 @@ class TushareLocalDB:
             date_filter += f" AND trade_date <= '{end_date.replace('-', '')}'"
 
         try:
-            # 尝试查询中证800或上证综指
-            index_codes = ['000985.SH', '000001.SH']  # 中证800、上证综指
+            # 按优先级查询：中证800 > 上证综指
+            index_codes = ['000906.SH', '000001.SH']
 
             for index_code in index_codes:
                 df = conn.execute(f"""
@@ -365,7 +365,8 @@ class TushareLocalDB:
 
                 if not df.empty:
                     df['date'] = pd.to_datetime(df['trade_date'], format='%Y%m%d').dt.strftime('%Y-%m-%d')
-                    print(f"✅ 获取指数数据: {index_code} ({len(df)}条)")
+                    index_name = "中证800" if index_code == '000906.SH' else "上证综指"
+                    print(f"✅ 获取{index_name}数据: {index_code} ({len(df)}条)")
                     return df
 
             print("⚠️ 未找到指数数据")
