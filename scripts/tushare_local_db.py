@@ -69,7 +69,7 @@ class TushareLocalDB:
 
         try:
             df = conn.execute(f"""
-                SELECT * FROM daily_quotes
+                SELECT * FROM v_daily_quotes
                 WHERE 1=1 {date_filter} {code_filter}
                 ORDER BY trade_date, ts_code
             """).fetchdf()
@@ -284,13 +284,13 @@ class TushareLocalDB:
             if ts_code:
                 result = conn.execute(f"""
                     SELECT MAX(trade_date) as max_date
-                    FROM daily_quotes
+                    FROM v_daily_quotes
                     WHERE ts_code = '{ts_code}'
                 """).fetchone()
             else:
                 result = conn.execute("""
                     SELECT MAX(trade_date) as max_date
-                    FROM daily_quotes
+                    FROM v_daily_quotes
                 """).fetchone()
 
             return result[0] if result and result[0] else None
