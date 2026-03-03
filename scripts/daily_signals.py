@@ -35,7 +35,7 @@ position_manager = PositionManager()
 USE_TUSHARE_LOCAL = True  # 是否使用 Tushare 本地数据库
 TUSHARE_DB_PATH = "data/tushare_db.duckdb"  # Tushare 本地数据库路径
 LEGACY_DB_PATH = "data/cs300_2years.duckdb"  # 原始数据库路径
-USE_ADJ_PRICE = True  # 是否使用前复权价格
+USE_ADJ_PRICE = True  # 是否使用后复权价格（HFQ）
 
 # 买入过滤参数
 MIN_ADX = 25  # 最小 ADX 值（趋势强度）
@@ -92,7 +92,7 @@ def get_market_data(db_path: str = None):
             ts_codes=cs300_codes,
             start_date=None,  # 获取所有可用数据
             end_date=None,
-            use_adj=USE_ADJ_PRICE  # 使用前复权价格
+            use_adj=USE_ADJ_PRICE  # 使用后复权价格（HFQ）
         )
 
         if quotes.empty:
@@ -108,8 +108,8 @@ def get_market_data(db_path: str = None):
         latest_data = quotes[quotes['date'] == latest_date].copy()
 
         # 使用复权价格（如果可用）
-        price_col = 'close_qfq' if USE_ADJ_PRICE and 'close_qfq' in quotes.columns else 'close'
-        print(f"💰 使用价格类型: {'前复权' if price_col == 'close_qfq' else '原始'}")
+        price_col = 'close_hfq' if USE_ADJ_PRICE and 'close_hfq' in quotes.columns else 'close'
+        print(f"💰 使用价格类型: {'后复权(HFQ)' if price_col == 'close_hfq' else '原始'}")
 
         # 转换为策略格式
         price_df = latest_data.pivot(index='date', columns='ts_code', values=price_col)
@@ -120,7 +120,7 @@ def get_market_data(db_path: str = None):
             'latest_date': latest_date_str,
             'price_df': price_df,
             'volume_df': volume_df,
-            'data_source': f'Tushare本地数据库({"前复权价格" if price_col == "close_qfq" else "原始价格"})'
+            'data_source': f'Tushare本地数据库({"后复权价格(HFQ)" if price_col == "close_hfq" else "原始价格"})'
         }
 
     else:
@@ -189,7 +189,7 @@ def generate_daily_signals(db_path: str = None):
     print(f"✅ 数据加载完成 ({market_data['data_source']})")
 
     # 获取最新交易日数据（用于价格查询）
-    price_col = 'close_qfq' if USE_ADJ_PRICE and 'close_qfq' in quotes.columns else 'close'
+    price_col = 'close_hfq' if USE_ADJ_PRICE and 'close_hfq' in quotes.columns else 'close'
     latest_data = quotes[quotes['date'] == latest_date].copy()
 
     # 生成动能信号
@@ -228,7 +228,7 @@ def generate_daily_signals(db_path: str = None):
 
             if not historical_quotes.empty:
                 historical_quotes['date'] = pd.to_datetime(historical_quotes['trade_date'], format='%Y%m%d').dt.strftime('%Y-%m-%d')
-                hist_price_col = 'close_qfq' if USE_ADJ_PRICE and 'close_qfq' in historical_quotes.columns else 'close'
+                hist_price_col = 'close_hfq' if USE_ADJ_PRICE and 'close_hfq' in historical_quotes.columns else 'close'
                 historical_price_df = historical_quotes.pivot(index='date', columns='ts_code', values=hist_price_col)
 
                 # 过滤掉数据不足的股票

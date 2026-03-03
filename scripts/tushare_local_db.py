@@ -50,7 +50,7 @@ class TushareLocalDB:
             ts_codes: 股票代码列表，None 表示所有股票
             start_date: 开始日期 (YYYY-MM-DD)
             end_date: 结束日期 (YYYY-MM-DD)
-            use_adj: 是否使用前复权价格
+            use_adj: 是否使用后复权价格（HFQ）
         """
         conn = self.connect()
 
@@ -130,7 +130,10 @@ class TushareLocalDB:
     def _apply_adj_factor(self, df: pd.DataFrame, ts_codes: List[str] = None,
                           start_date: str = None, end_date: str = None) -> pd.DataFrame:
         """
-        应用复权因子计算前复权价格
+        应用复权因子计算后复权价格（HFQ）
+
+        后复权价格 = 原始价格 × 当日复权因子
+        注意：这是后复权，不是前复权。使用后复权可以避免"未来函数"问题。
 
         Args:
             df: 原始日线数据
@@ -139,7 +142,7 @@ class TushareLocalDB:
             end_date: 结束日期
 
         Returns:
-            添加复权价格字段的 DataFrame
+            添加后复权价格字段的 DataFrame
         """
         if df.empty:
             return df
@@ -155,10 +158,10 @@ class TushareLocalDB:
         merged = df.merge(adj_df[['ts_code', 'trade_date', 'adj_factor']],
                           on=['ts_code', 'trade_date'], how='left')
 
-        # 计算前复权价格 = 原始价格 × 复权因子
+        # 计算后复权价格 = 原始价格 × 当日复权因子
         for col in ['open', 'high', 'low', 'close', 'pre_close']:
             if col in merged.columns:
-                merged[f'{col}_qfq'] = merged[col] * merged['adj_factor']
+                merged[f'{col}_hfq'] = merged[col] * merged['adj_factor']
 
         return merged
 

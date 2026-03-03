@@ -173,7 +173,7 @@ class SimpleSignalGenerator:
         if len(df) < 20:
             return 0
 
-        close = df['close_qfq'].values if 'close_qfq' in df.columns else df['close'].values
+        close = df['close_hfq'].values if 'close_hfq' in df.columns else df['close'].values
 
         # 短期动量 (5日)
         if len(close) >= 6:
@@ -350,11 +350,11 @@ def generate_daily_signals_lite():
         daily_data['adj_factor'] = daily_data['adj_factor'].fillna(1)
         for col in ['open', 'high', 'low', 'close', 'pre_close']:
             if col in daily_data.columns:
-                daily_data[f'{col}_qfq'] = daily_data[col] * daily_data['adj_factor']
+                daily_data[f'{col}_hfq'] = daily_data[col] * daily_data['adj_factor']
         print("✅ 复权处理完成")
 
     # 整理价格数据
-    price_col = 'close_qfq' if 'close_qfq' in daily_data.columns else 'close'
+    price_col = 'close_hfq' if 'close_hfq' in daily_data.columns else 'close'
     daily_data['date'] = pd.to_datetime(daily_data['trade_date'], format='%Y%m%d')
 
     # 筛选有效股票
