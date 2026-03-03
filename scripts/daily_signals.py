@@ -40,7 +40,7 @@ USE_ADJ_PRICE = True  # 是否使用后复权价格（HFQ）
 # 买入过滤参数
 MIN_ADX = 25  # 最小 ADX 值（趋势强度）
 MIN_PE = 0  # 最小市盈率（剔除亏损股，pe_ttm > 0）
-MIN_MARKET_CAP = 300000  # 最小市值（万元，剔除极小微盘股）
+MIN_MARKET_CAP = 3000000  # 最小市值（300亿万元，剔除中小盘股，只保留大盘股）
 MIN_WINNER_RATE = 70  # 最小赢利比例%（筹码分布，上方套牢盘少）
 
 # 日期修正（如系统时间错误可设置）
@@ -244,7 +244,7 @@ def generate_daily_signals(db_path: str = None):
         print(f"  停牌股票: {len(suspended_stocks)} 只")
 
     # 3. 基本面过滤
-    print(f"\n【过滤3/4】基本面过滤 (PE>{MIN_PE}, 市值>{MIN_MARKET_CAP}万)")
+    print(f"\n【过滤3/4】基本面过滤 (PE>{MIN_PE}, 市值>{MIN_MARKET_CAP//10000}亿)")
     basic_data = {}
     if db:
         daily_basic = db.get_daily_basic(trade_date=trade_date_for_api)
