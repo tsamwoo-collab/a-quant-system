@@ -528,16 +528,52 @@ class TushareDataDownloader:
         print(f"=== 快速增量更新 ({date}) ===")
         self.init_api()
 
-        # 一次性下载全市场当日数据
-        print(f"📥 下载全市场日线数据 ({date})...")
+        # 辅助函数：检查本地是否已有某日期的数据
+        def has_local_data(check_date: str) -> bool:
+            """检查本地是否已有某日期的数据"""
+            try:
+                import glob
+                pattern = os.path.join(self.parquet_path, "daily_quotes_*.parquet")
+                files = sorted(glob.glob(pattern))
+                for file in files:
+                    df = pd.read_parquet(file)
+                    if check_date in df['trade_date'].values:
+                        return True
+                return False
+            except:
+                return False
+
+        # 1. 尝试下载当天数据
+        print(f"📥 检查当日数据 ({date})...")
         try:
             df_all = self.pro.daily(trade_date=date)
-            print(f"✅ 获取 {len(df_all)} 条日线数据")
+            if not df_all.empty:
+                print(f"✅ 获取 {len(df_all)} 条日线数据")
+            else:
+                print(f"⚠️  当日暂无数据")
         except Exception as e:
-            print(f"❌ 日线数据下载失败: {e}")
+            print(f"⚠️  当日数据下载失败: {e}")
             df_all = pd.DataFrame()
 
-        # 一次性下载全市场复权因子
+        # 2. 如果当天没有数据，检查本地是否已有昨天的数据
+        if df_all.empty and use_today:
+            yesterday = (datetime.now() - timedelta(days=1)).strftime("%Y%m%d")
+
+            if has_local_data(yesterday):
+                print(f"✅ 本地已有昨日数据 ({yesterday})，跳过下载")
+            else:
+                print(f"📥 本地无昨日数据，尝试下载 ({yesterday})...")
+                try:
+                    df_all = self.pro.daily(trade_date=yesterday)
+                    if not df_all.empty:
+                        print(f"✅ 获取 {len(df_all)} 条日线数据")
+                    else:
+                        print(f"⚠️  昨日也无数据")
+                except Exception as e:
+                    print(f"❌ 昨日数据下载失败: {e}")
+                    df_all = pd.DataFrame()
+
+        # 3. 下载复权因子（只下载当天的，不复用旧的）
         print(f"📥 下载全市场复权因子 ({date})...")
         try:
             df_adj = self.pro.adj_factor(trade_date=date)
@@ -546,7 +582,7 @@ class TushareDataDownloader:
             print(f"❌ 复权因子下载失败: {e}")
             df_adj = pd.DataFrame()
 
-        # 一次性下载全市场基础指标
+        # 4. 下载基础指标
         print(f"📥 下载全市场基础指标 ({date})...")
         try:
             df_basic = self.pro.daily_basic(trade_date=date, fields='ts_code,trade_date,turnover_rate,pe_ttm,pb,total_mv')
