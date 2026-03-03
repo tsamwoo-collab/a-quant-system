@@ -462,8 +462,16 @@ class AdaptiveStrategyADX(SignalStrategy):
         self.rest_when_weak = rest_when_weak  # 震荡时是否空仓
 
     def generate(self, price_df: pd.DataFrame, volume_df: pd.DataFrame = None) -> pd.DataFrame:
-        # 计算市场ADX
-        market_adx = self._calculate_market_adx(price_df)
+        # 计算市场ADX（返回float或Series）
+        market_adx_result = self._calculate_market_adx(price_df)
+
+        # 判断market_adx是float还是Series
+        if isinstance(market_adx_result, (int, float)):
+            market_adx_value = market_adx_result
+            # 创建一个Series，所有日期使用同一个ADX值
+            market_adx = pd.Series([market_adx_value] * len(price_df), index=price_df.index)
+        else:
+            market_adx = market_adx_result
 
         signal_df = pd.DataFrame(index=price_df.index, columns=price_df.columns)
 
@@ -495,18 +503,108 @@ class AdaptiveStrategyADX(SignalStrategy):
 
         return signal_df.fillna(0)
 
-    def _calculate_market_adx(self, price_df: pd.DataFrame) -> pd.Series:
-        """计算市场平均ADX（使用个股AD X的平均值）"""
-        # 计算每只股票的ADX，然后取平均
-        adx_values = pd.Series(index=price_df.index, dtype=float)
+    def _calculate_market_adx(self, price_df: pd.DataFrame = None, index_data: pd.DataFrame = None) -> float:
+        """
+        计算市场ADX（使用中证800指数）
 
-        for stock in price_df.columns:
-            stock_adx = self._calculate_adx(price_df[stock], self.adx_period)
-            adx_values = adx_values.add(stock_adx, fill_value=0)
+        Args:
+            price_df: 个股价格数据（已废弃，保留兼容性）
+            index_data: 指数数据 DataFrame，需包含 high, low, close 列
 
-        # 取平均值
-        market_adx = adx_values / len(price_df.columns)
-        return market_adx.fillna(20)
+        Returns:
+            float: 最新的ADX值
+        """
+        if index_data is None or index_data.empty:
+            # 降级：使用个股数据平均（不推荐）
+            if price_df is None or price_df.empty:
+                return 20.0
+
+            print("⚠️ 未提供指数数据，使用个股ADX平均（不推荐）")
+            adx_values = pd.Series(index=price_df.index, dtype=float)
+            for stock in price_df.columns:
+                stock_adx = self._calculate_adx(price_df[stock], self.adx_period)
+                adx_values = adx_values.add(stock_adx, fill_value=0)
+            market_adx = adx_values / len(price_df.columns)
+            return market_adx.iloc[-1] if len(market_adx) > 0 else 20.0
+
+        # 使用指数数据计算ADX（推荐）
+        if 'high' not in index_data.columns or 'low' not in index_data.columns or 'close' not in index_data.columns:
+            print("⚠️ 指数数据缺少OHLC字段")
+            return 20.0
+
+        # 标准ADX计算：使用指数的 high, low, close
+        high = index_data['high'].values
+        low = index_data['low'].values
+        close = index_data['close'].values
+
+        adx_series = self._calculate_adx_ohlc(high, low, close, self.adx_period)
+        return adx_series.iloc[-1] if len(adx_series) > 0 else 20.0
+
+    def _calculate_adx_ohlc(self, high: np.ndarray, low: np.ndarray, close: np.ndarray, period: int = 14) -> pd.Series:
+        """
+        使用OHLC数据计算ADX（标准算法）
+
+        Args:
+            high: 最高价数组
+            low: 最低价数组
+            close: 收盘价数组
+            period: ADX周期
+
+        Returns:
+            ADX值序列
+        """
+        n = len(close)
+        if n < period * 2:
+            return pd.Series([20.0] * n)
+
+        # 计算 TR
+        tr = np.zeros(n)
+        for i in range(1, n):
+            hl = high[i] - low[i]
+            hc = abs(high[i] - close[i-1])
+            lc = abs(low[i] - close[i-1])
+            tr[i] = max(hl, hc, lc)
+
+        # 计算 +DM 和 -DM
+        pos_dm = np.zeros(n)
+        neg_dm = np.zeros(n)
+        for i in range(1, n):
+            up_move = high[i] - high[i-1]
+            down_move = low[i-1] - low[i]
+            pos_dm[i] = up_move if up_move > down_move and up_move > 0 else 0
+            neg_dm[i] = down_move if down_move > up_move and down_move > 0 else 0
+
+        # 平滑处理
+        alpha = 1.0 / period
+
+        atr = np.zeros(n)
+        pos_di_smooth = np.zeros(n)
+        neg_di_smooth = np.zeros(n)
+
+        # 初始化
+        atr[period-1] = np.mean(tr[:period])
+        pos_di_smooth[period-1] = np.mean(pos_dm[:period])
+        neg_di_smooth[period-1] = np.mean(neg_dm[:period])
+
+        # 平滑迭代
+        for i in range(period, n):
+            atr[i] = alpha * tr[i] + (1 - alpha) * atr[i-1]
+            pos_di_smooth[i] = alpha * pos_dm[i] + (1 - alpha) * pos_di_smooth[i-1]
+            neg_di_smooth[i] = alpha * neg_dm[i] + (1 - alpha) * neg_di_smooth[i-1]
+
+        # 计算 +DI 和 -DI
+        pos_di = 100 * pos_di_smooth / (atr + 1e-10)
+        neg_di = 100 * neg_di_smooth / (atr + 1e-10)
+
+        # 计算 DX 和 ADX
+        dx = 100 * np.abs(pos_di - neg_di) / (pos_di + neg_di + 1e-10)
+
+        adx = np.zeros(n)
+        adx[period-1] = np.mean(dx[:period])
+        for i in range(period, n):
+            adx[i] = alpha * dx[i] + (1 - alpha) * adx[i-1]
+
+        return pd.Series(adx)
 
     def _calculate_adx(self, prices: pd.Series, period: int = 14) -> pd.Series:
         """计算ADX指标（标准版）"""

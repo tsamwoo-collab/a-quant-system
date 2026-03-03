@@ -328,6 +328,52 @@ class TushareLocalDB:
         # 否则从 daily_quotes 读取（需要调整代码）
         return self.get_daily_data([index_code], start_date, end_date)
 
+    def get_cs800_index_data(self, start_date: str = None, end_date: str = None) -> pd.DataFrame:
+        """
+        获取中证800指数数据（用于计算市场ADX）
+
+        中证800代码：000985.SH（上交所）
+        如果没有中证800数据，则使用上证综指（000001.SH）作为替代
+
+        Args:
+            start_date: 开始日期 (YYYY-MM-DD)
+            end_date: 结束日期 (YYYY-MM-DD)
+
+        Returns:
+            包含 ts_code, trade_date, open, high, low, close, vol 的 DataFrame
+        """
+        conn = self.connect()
+
+        # 日期过滤
+        date_filter = ""
+        if start_date:
+            date_filter += f" AND trade_date >= '{start_date.replace('-', '')}'"
+        if end_date:
+            date_filter += f" AND trade_date <= '{end_date.replace('-', '')}'"
+
+        try:
+            # 尝试查询中证800或上证综指
+            index_codes = ['000985.SH', '000001.SH']  # 中证800、上证综指
+
+            for index_code in index_codes:
+                df = conn.execute(f"""
+                    SELECT ts_code, trade_date, open, high, low, close, vol, amount
+                    FROM v_daily_quotes
+                    WHERE ts_code = '{index_code}' {date_filter}
+                    ORDER BY trade_date
+                """).fetchdf()
+
+                if not df.empty:
+                    df['date'] = pd.to_datetime(df['trade_date'], format='%Y%m%d').dt.strftime('%Y-%m-%d')
+                    print(f"✅ 获取指数数据: {index_code} ({len(df)}条)")
+                    return df
+
+            print("⚠️ 未找到指数数据")
+            return pd.DataFrame()
+
+        finally:
+            self.close()
+
     def get_cs300_stocks(self) -> List[str]:
         """获取沪深300成分股代码（前300只活跃股票）"""
         conn = self.connect()

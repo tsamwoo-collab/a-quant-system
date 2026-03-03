@@ -208,7 +208,7 @@ def generate_daily_signals(db_path: str = None):
     db = TushareLocalDB() if USE_TUSHARE_LOCAL else None
     trade_date_for_api = latest_date.replace('-', '')  # YYYYMMDD 格式
 
-    # 1. ADX 过滤
+    # 1. ADX 过滤（使用中证800指数）
     print(f"\n【过滤1/4】ADX 趋势过滤 (>{MIN_ADX})")
     adx_strategy = AdaptiveStrategyADX()
     latest_adx = 0
@@ -216,29 +216,16 @@ def generate_daily_signals(db_path: str = None):
 
     try:
         if USE_TUSHARE_LOCAL and db:
-            # 获取完整的股票列表，而不是只用当前有的
-            all_cs300 = db.get_cs300_stocks()[:200]  # 使用200只
-            start_date = (datetime.now() - timedelta(days=120)).strftime("%Y-%m-%d")  # 延长到120天
-            historical_quotes = db.get_daily_data(
-                ts_codes=all_cs300,
-                start_date=start_date,
-                end_date=None,
-                use_adj=USE_ADJ_PRICE
-            )
+            # 获取中证800指数数据（用于计算市场ADX）
+            start_date = (datetime.now() - timedelta(days=120)).strftime("%Y-%m-%d")
+            index_data = db.get_cs800_index_data(start_date=start_date)
 
-            if not historical_quotes.empty:
-                historical_quotes['date'] = pd.to_datetime(historical_quotes['trade_date'], format='%Y%m%d').dt.strftime('%Y-%m-%d')
-                hist_price_col = 'close_hfq' if USE_ADJ_PRICE and 'close_hfq' in historical_quotes.columns else 'close'
-                historical_price_df = historical_quotes.pivot(index='date', columns='ts_code', values=hist_price_col)
-
-                # 过滤掉数据不足的股票
-                historical_price_df = historical_price_df.dropna(axis=1, thresh=60)  # 至少60天数据
-
-                if len(historical_price_df) > 0:
-                    adx_regime = adx_strategy._calculate_market_adx(historical_price_df)
-                    latest_adx = adx_regime.iloc[-1] if len(adx_regime) > 0 else 0
-                else:
-                    latest_adx = 0
+            if not index_data.empty:
+                # 使用指数数据计算ADX（只需1次计算）
+                latest_adx = adx_strategy._calculate_market_adx(index_data=index_data)
+                print(f"  📊 使用中证800指数计算ADX（{len(index_data)}条数据）")
+            else:
+                print(f"  ⚠️ 未获取到中证800指数数据")
 
         if latest_adx >= MIN_ADX:
             adx_passed = True
