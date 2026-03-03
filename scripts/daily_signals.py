@@ -217,13 +217,14 @@ def generate_daily_signals(db_path: str = None):
     try:
         if USE_TUSHARE_LOCAL and db:
             # 获取中证800指数数据（用于计算市场ADX）
-            start_date = (datetime.now() - timedelta(days=120)).strftime("%Y-%m-%d")
+            # 使用250天历史数据以确保ADX/RSI等指标完全稳定（避免EMA预热效应）
+            start_date = (datetime.now() - timedelta(days=250)).strftime("%Y-%m-%d")
             index_data = db.get_cs800_index_data(start_date=start_date)
 
             if not index_data.empty:
                 # 使用指数数据计算ADX（只需1次计算）
                 latest_adx = adx_strategy._calculate_market_adx(index_data=index_data)
-                print(f"  📊 使用中证800指数计算ADX（{len(index_data)}条数据）")
+                print(f"  📊 使用中证800指数计算ADX（{len(index_data)}条数据，250天历史）")
             else:
                 print(f"  ⚠️ 未获取到中证800指数数据")
 

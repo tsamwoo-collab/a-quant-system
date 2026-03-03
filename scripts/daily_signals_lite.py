@@ -36,7 +36,7 @@ MIN_WINNER_RATE = 70  # 获利比例 > 70%
 
 # 测试股票数量（控制 API 调用量）
 TEST_STOCK_COUNT = 200
-HISTORY_DAYS = 120  # 历史天数
+HISTORY_DAYS = 250  # 历史天数（约一年交易日，确保ADX/RSI等EMA类指标完全稳定）
 
 
 # ==================== Tushare API ====================
